@@ -91,7 +91,7 @@ create table if not exists public.game_admins (
 -- Fixed-window counters; keys are server-derived auth user IDs, never untrusted IPs.
 create table if not exists public.game_rate_limits (
   user_id uuid not null references auth.users(id) on delete cascade,
-  action text not null check (action in ('events','submit')),
+  action text not null check (action in ('visit','start','events','submit')),
   window_start timestamptz not null,
   request_count integer not null default 0,
   primary key (user_id, action, window_start)
@@ -114,3 +114,26 @@ revoke all on public.game_players, public.game_visits, public.game_sessions,
 
 -- Retain ownership isolation and use explicit rate limiting in server code.
 -- Optional scheduled maintenance: delete counters older than 2 days and events after your retention period.
+
+-- Atomic server-only abuse gate; invoker is service_role, no public EXECUTE grant.
+create or replace function public.game_consume_rate_limit(
+  p_user uuid, p_action text, p_seconds integer, p_max integer
+) returns boolean language plpgsql security invoker set search_path = public as $$
+declare
+  accepted boolean;
+  bucket timestamptz;
+begin
+  if p_action not in ('visit','start','events','submit') or p_seconds < 1 or p_max < 1 then
+    return false;
+  end if;
+  bucket := to_timestamp(floor(extract(epoch from now()) / p_seconds) * p_seconds);
+  insert into public.game_rate_limits(user_id, action, window_start, request_count)
+    values (p_user, p_action, bucket, 1)
+    on conflict (user_id, action, window_start) do update
+    set request_count = public.game_rate_limits.request_count + 1
+    where public.game_rate_limits.request_count < p_max
+    returning true into accepted;
+  return coalesce(accepted,false);
+end; $$;
+revoke all on function public.game_consume_rate_limit(uuid,text,integer,integer) from public, anon, authenticated;
+grant execute on function public.game_consume_rate_limit(uuid,text,integer,integer) to service_role;
