@@ -46,7 +46,7 @@
 
 ## Limitations / follow-up work before production
 
-- Current rate limiter is per-authenticated-user **best-effort**, not an atomic distributed limiter. Use an atomic SQL counter or gateway rate limit when scaling.
+- An atomic database counter limits requests per authenticated account; pair it with anonymous-sign-in CAPTCHA and gateway protections to mitigate bots that create many accounts. It is not an IP-level limiter.
 - Anonymous Auth creates durable temporary Auth users. Configure retention/cleanup policies; new browsers can create multiple accounts.
 - Preventing cheating requires replay validation or a server-authoritative game engine. Mark results as *plausibility checked*, not cryptographically verified.
 - Admin dashboard reports up to 10,000 recent rows per category and lacks the full advanced retention/valuation charts in the original brief. Expand after verifying real usage and event schemas.
