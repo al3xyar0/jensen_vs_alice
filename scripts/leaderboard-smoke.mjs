@@ -1,0 +1,40 @@
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { createClient } from '@supabase/supabase-js';
+
+const code=readFileSync('online/config.js','utf8');
+const sandbox={window:{}};
+vm.runInNewContext(code,sandbox);
+const {url,publishableKey}=sandbox.window.JVA_SUPABASE;
+if(!/^https:\/\/[^/]+\.supabase\.co$/.test(url)||!publishableKey?.startsWith('sb_publishable_'))throw Error('Invalid public configuration');
+const base=url+'/functions/v1/jva-game-api/';
+const origin='https://al3xyar0.github.io';
+async function api(path,method='GET',body,token){
+  const headers={apikey:publishableKey,origin,'content-type':'application/json'};
+  if(token)headers.Authorization='Bearer '+token;
+  const res=await fetch(base+path,{method,headers,body:body?JSON.stringify(body):undefined});
+  const json=await res.json();
+  if(!res.ok)throw Error(method+' '+path+' failed ('+res.status+'): '+JSON.stringify(json));
+  return json;
+}
+const list=await api('leaderboard?range=all&limit=10');
+if(!Array.isArray(list.rows))throw Error('Public leaderboard missing rows');
+console.log('PUBLIC LEADERBOARD PASS:',list.rows.length,'entries');
+const client=createClient(url,publishableKey,{auth:{persistSession:false,autoRefreshToken:false}});
+const {data,error}=await client.auth.signInAnonymously();
+if(error||!data.session?.access_token)throw Error('Anonymous Supabase Auth failed: '+(error?.message||'no session'));
+console.log('SILENT ANONYMOUS PLAYER PASS');
+const token=data.session.access_token;
+const visitId=crypto.randomUUID(),sessionId=crypto.randomUUID();
+await api('visit','POST',{visitId,device:'desktop',referrer:'github.com',utmSource:'ci-smoke-test'},token);
+await api('start','POST',{sessionId},token);
+console.log('GAME VISIT AND START PASS');
+await api('events','POST',{events:[{id:crypto.randomUUID(),name:'game_start',sessionId,visitId,properties:{}}]},token);
+await new Promise(r=>setTimeout(r,3000));
+const score=await api('submit','POST',{sessionId,nickname:'CI-TEST',score:100,wave:1,valuation:3490,victory:false},token);
+if(!score.accepted||!score.rank)throw Error('Score submission not accepted: '+JSON.stringify(score));
+console.log('SCORE SUBMISSION PASS, RANK',score.rank);
+const list2=await api('leaderboard?range=all&limit=100');
+if(!list2.rows.some(r=>r.nickname==='CI-TEST'&&r.score===100))throw Error('Score missing in public leaderboard');
+console.log('PUBLIC RANKING VERIFICATION PASS');
+console.log('TEST USER ID',data.user.id);
