@@ -1,0 +1,19 @@
+name: Leaderboard API smoke test
+on:
+  pull_request:
+    branches: [main]
+    paths: ['online/**','supabase/**','.github/workflows/leaderboard-smoke.yml']
+  push:
+    branches: [feature/supabase-leaderboard-analytics]
+    paths: ['.github/workflows/leaderboard-smoke.yml']
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check public leaderboard and silent player identity
+        run: node scripts/leaderboard-smoke.mjs
