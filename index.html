@@ -69,6 +69,26 @@ function chooseBoard(kind){if(state!=='board')return;el('boardOverlay').classLis
 
 function reset(){state='running';el('overlay').classList.add('hidden');el('boardOverlay').classList.add('hidden');lane=2;score=0;lives=3;wave=1;t=0;spawnTimer=.7;shootTimer=0;shake=0;flash=0;combo=0;comboTimer=0;rapid=0;multiplier=0;heartRush=0;freeze=0;shortage=0;blackwell=0;weapon=0;spent=0;stopped=0;market=3750;sentiment=50;production=0;aiCorrection=0;aiCorrectionDue=0;jacket=0;freeAmmo=0;marketCrash=false;panicTriggered=false;boardCooldown=0;shotsThisMinute=[];perfectHits=0;leaks=0;bossesDefeated=0;lastWaveLeak=0;eventTimer=28;eventLife=0;boss=null;bossNext=5;shots=[];enemies=[];particles=[];texts=[];items=[];documents=[];rings=[];hud()}
 function message(text,color='#ffdb74',x=510,y=150,size=23){texts.push({text,color,x,y,life:1.3,size})}
+function layoutText(list){
+ const placed=[];const result=[];
+ // Major market announcements stay in a small dedicated notification stack.
+ const global=list.filter(z=>z.x>=450&&z.x<=560&&z.y<=195).slice(-2);
+ const combat=list.filter(z=>!(z.x>=450&&z.x<=560&&z.y<=195)).slice(-8);
+ const ordered=[...global.map((z,i)=>({...z,x:500,y:121+i*37})),...combat];
+ for(const z of ordered){
+  let y=Math.max(75,Math.min(495,z.y));let x=z.x;
+  const width=Math.min(720,z.text.length*z.size*.62+12);
+  x=Math.max(width/2+9,Math.min(1000-width/2-9,x));
+  let found=false;
+  for(let n=0;n<15;n++){
+   const collision=placed.some(p=>Math.abs(p.x-x)<(p.width+width)/2+12&&Math.abs(p.y-y)<Math.max(25,(p.size+z.size)*.68));
+   if(!collision){found=true;break}
+   y=(y+32>500)?85:y+32;
+  }
+  if(found){placed.push({x,y,width,size:z.size});result.push({...z,x,ry:y})}
+ }
+ return result;
+}
 function burst(x,y,col='#89ff62',num=22){for(let i=0;i<num;i++){let a=r(0,Math.PI*2),v=r(35,260),life=r(.3,.9);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,max:life,col:i%4===0?'#ffffff':col,size:r(2,7)})}shake=6}
 function lose(reason){if(state==='over'||state==='won')return;state='over';held=false;el('boardOverlay').classList.add('hidden');if(score>highScore){highScore=score;try{localStorage.setItem('jva_highscore_v2',score)}catch(e){}}hud();sound('loss');modal('WALL STREET FIRED JENSEN','NVIDIA DOWNGRADED<br>TO A TOASTER COMPANY','Market cap crashed to $'+(market/1000).toFixed(2)+'T below the $3.50T floor. Score '+score.toLocaleString()+' · Alices stopped '+stopped+'.','RETRY →')}
 
@@ -99,7 +119,7 @@ function summonBoss(){boss={x:1010,y:yl(2),hp:26+wave*3,maxhp:26+wave*3,phase:0,
 function upgrade(){const w=Math.min(3,Math.floor((wave-1)/3));if(w>weapon){weapon=w;message('UNLOCKED: '+weapons[w].name,'#a8ff7b',520,134,29);sound('upgrade')}hud()}
 function rewardCombo(){if(combo===3)message('GPU RIZZ!','#c4ff81',470,155,27);if(combo===10)message('MARKET DOMINANCE!','#ffd466',470,155,30);if(combo===20)message('NVIDIA STOCK +420%!','#95ebff',470,155,32)}
 function killEnemy(e){e.hp=0;stopped++;combo++;comboTimer=3.1;score+=Math.round((100+wave*14)*Math.min(5,1+Math.floor(combo/4))*(multiplier>0?5:1));changeMarket(r(.8,1.8));perfectHits++;if(combo%10===0)changeMarket(20,'TEN ALICE STREAK',true);if(perfectHits===20)changeMarket(60,'GOLDMAN RAISES PRICE TARGET',true);rewardCombo();message(['BONK!','CUDA!','RTX RIZZ!'][Math.floor(r(0,3))],'#f6eeac',e.x,e.y-45,18);burst(e.x,e.y,'#fd7bad',19);sound('bonk');if(Math.random()<.05)speak('CUDA');if(Math.random()<.075)spawnItem();hud()}
-function hitItem(it){it.life=0;if(it.kind==='ring'){freeze=2;changeMarket(-75,'COMMITMENT ERROR',true);message('COMMITMENT ERROR!','#ff9bc8',Math.max(260,it.x),it.y-55,28);burst(it.x,it.y,'#80defc',26);sound('ring')}else if(it.kind==='folder'){score+=800*(multiplier>0?5:1);changeMarket(35,'TOP SECRET',true);for(let i=0;i<13;i++){documents.push({x:it.x,y:it.y,vx:r(-180,170),vy:r(-225,-30),life:r(.7,1.6),word:['GPU PRICES +900%','CUDA IS LOVE','CLASSIFIED','RTX MEMO'][i%4]})}message('LEAKED! +800','#fbd27e',it.x,it.y-52,23);sound('secret')}else if(it.kind==='gold'){rapid=8;changeMarket(40,'GOLDEN GPU',true);message('TRIPLE GPU: 8 SECONDS!','#caff91',it.x,it.y-52,21);sound('upgrade')}else if(it.kind==='stock'){multiplier=9;message('NVIDIA STOCK ×5 SCORE!','#b6ffa4',it.x,it.y-52,21);sound('upgrade')}else{heartRush=7;message('ALICE HEART! SPEED ×2','#ff94a6',it.x,it.y-52,21);sound('ring')}burst(it.x,it.y,it.kind==='ring'?'#8ef4ff':'#f4d584',16);hud()}
+function hitItem(it){it.life=0;if(it.kind==='ring'){freeze=2;changeMarket(-75,'ENGAGEMENT RING',true);message('ENGAGEMENT RING!','#ff9bc8',Math.max(260,it.x),it.y-55,28);burst(it.x,it.y,'#80defc',26);sound('ring')}else if(it.kind==='folder'){score+=800*(multiplier>0?5:1);changeMarket(35,'TOP SECRET',true);for(let i=0;i<13;i++){documents.push({x:it.x,y:it.y,vx:r(-180,170),vy:r(-225,-30),life:r(.7,1.6),word:['GPU PRICES +900%','CUDA IS LOVE','CLASSIFIED','RTX MEMO'][i%4]})}message('LEAKED! +800','#fbd27e',it.x,it.y-52,23);sound('secret')}else if(it.kind==='gold'){rapid=8;changeMarket(40,'GOLDEN GPU',true);message('TRIPLE GPU: 8 SECONDS!','#caff91',it.x,it.y-52,21);sound('upgrade')}else if(it.kind==='stock'){multiplier=9;message('NVIDIA STOCK ×5 SCORE!','#b6ffa4',it.x,it.y-52,21);sound('upgrade')}else{heartRush=7;message('ALICE HEART! SPEED ×2','#ff94a6',it.x,it.y-52,21);sound('ring')}burst(it.x,it.y,it.kind==='ring'?'#8ef4ff':'#f4d584',16);hud()}
 function update(dt){if(state!=='running')return;dt=Math.min(.05,dt);t+=dt;spawnTimer-=dt;shootTimer-=dt;comboTimer-=dt;eventTimer-=dt;boardCooldown=Math.max(0,boardCooldown-dt);eventLife=Math.max(0,eventLife-dt);freeze=Math.max(0,freeze-dt);rapid=Math.max(0,rapid-dt);multiplier=Math.max(0,multiplier-dt);heartRush=Math.max(0,heartRush-dt);shortage=Math.max(0,shortage-dt);blackwell=Math.max(0,blackwell-dt);jacket=Math.max(0,jacket-dt);freeAmmo=Math.max(0,freeAmmo-dt);if(production>0){production=Math.max(0,production-dt);changeMarket(10*dt)}if(aiCorrectionDue>0){aiCorrectionDue-=dt;if(aiCorrectionDue<=0&&aiCorrection){changeMarket(-aiCorrection,'AI HYPE CORRECTION',true);aiCorrection=0}}shake=Math.max(0,shake-dt*35);flash=Math.max(0,flash-dt);if(comboTimer<=0)combo=0;
  const newWave=1+Math.floor(t/18);if(newWave>wave){if(wave>=10){win();return}if(leaks===lastWaveLeak)changeMarket(60,'PERFECT WAVE',true);lastWaveLeak=leaks;wave=newWave;panicTriggered=market>=3650?false:panicTriggered;message('WAVE '+wave+' — DEFEND THE VALUATION','#e8ff9f',500,155,27);upgrade();if(wave%5===0)summonBoss()}
  if(state!=='running')return; if(eventTimer<=0)gameEvent();if(state!=='running')return;if(spawnTimer<=0){spawnEnemy();spawnTimer=Math.max(.40,1.40-wave*.105)*r(.7,1.35);if(Math.random()<.24)spawnItem()}
@@ -120,7 +140,7 @@ function update(dt){if(state!=='running')return;dt=Math.min(.05,dt);t+=dt;spawnT
  }
  if(boss){boss.phase+=dt;boss.x-=22*dt;boss.y=yl(2)+Math.sin(t*1.5)*11;boss.cool-=dt;if(boss.cool<0){boss.cool=2.35;for(let i=0;i<3;i++)rings.push({x:boss.x-70,y:yl((Math.floor(r(0,5))+i)%5),v:225,phase:r(0,6.3)})}if(boss.x<185){boss.x=185;if(!boss.breached){boss.breached=true;if(jacket<=0)changeMarket(-120,'BOSS ALICE BREAKTHROUGH',true)}}}
  if(state!=='running')return;
- for(const ring of rings){ring.x-=ring.v*dt;ring.y+=Math.sin(t*11+ring.phase)*.6;if(ring.x<150&&Math.abs(ring.y-yl(lane))<45){freeze=2;changeMarket(-75,'RING BARRAGE',true);message('RING BARRAGE!','#ff9fb9',225,ring.y-36,21);ring.x=-100;sound('ring')}}rings=rings.filter(a=>a.x>0);
+ for(const ring of rings){ring.x-=ring.v*dt;ring.y+=Math.sin(t*11+ring.phase)*.6;if(ring.x<150&&Math.abs(ring.y-yl(lane))<45){freeze=2;changeMarket(-75,'RING BARRAGE',true);message('ENGAGEMENT BARRAGE!','#ff9fb9',225,ring.y-36,21);ring.x=-100;sound('ring')}}rings=rings.filter(a=>a.x>0);
  if(state!=='running')return;
  for(const shot of shots){if(state!=='running')break;if(shot.x>1050)continue;let hit=false;if(boss&&Math.abs(shot.x-boss.x)<90&&Math.abs(shot.y-boss.y)<200){boss.hp-=shot.power;hit=true;burst(shot.x,shot.y,'#ffa3bc',5);if(boss.hp<=0){score+=5000;bossesDefeated++;changeMarket(120,'RELATIONSHIP TRANSITORY',true);message('BOSS DEFEATED! +$120B','#ffe27f',500,135,31);burst(boss.x,boss.y,'#ff8dc3',85);boss=null;hud()}}if(!hit){for(const e of enemies){if(e.hp>0&&Math.abs(shot.x-e.x)<37&&Math.abs(shot.y-e.y)<38){if(e.kind==='shield'&&Math.random()<.13){e.lane=clamp(e.lane+(Math.random()<.5?-1:1),0,4);message('RING SHIELD!','#ffbfca',e.x,e.y-47,17);hit=true;break}e.hp-=shot.power;e.hurt=.14;hit=true;if(e.hp<=0)killEnemy(e);else burst(shot.x,shot.y,'#ffc1cb',5);break}}}if(!hit){for(const item of items){if(item.life>0&&Math.abs(shot.x-item.x)<30&&Math.abs(shot.y-item.y)<25){hitItem(item);hit=true;break}}}if(hit)shot.x=99999}
  if(state!=='running')return;shots=shots.filter(s=>s.x<1060);enemies=enemies.filter(e=>e.hp>0);items=items.filter(it=>it.x>40&&it.life>0);
@@ -149,7 +169,7 @@ function iceAroundJensen(time){
  ctx.fillStyle='#8fe6ff';ctx.fillRect(-25,62,52,5);ctx.restore();
 }
 function diamond(x,y,phase,scale=1){ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(scale,scale);ctx.fillStyle='#a87127';ctx.fillRect(-9,-3,5,18);ctx.fillRect(5,-3,5,18);ctx.fillRect(-5,11,10,5);ctx.fillStyle='#ffe16a';ctx.fillRect(-9,-3,5,15);ctx.fillRect(5,-3,5,15);ctx.fillRect(-5,12,10,4);ctx.fillStyle='#1f5060';ctx.fillRect(-11,-18,23,16);ctx.fillStyle='#65d4f9';ctx.fillRect(-9,-16,19,11);ctx.fillRect(-6,-5,13,4);ctx.fillStyle='#f9ffff';ctx.fillRect(-6,-14,7,5);ctx.fillRect(-2,-10,5,5);ctx.fillStyle='#8af0ff';const sparkle=Math.floor(phase*9)%4;let star=(sx,sy)=>{ctx.fillRect(sx-1,sy-7,3,15);ctx.fillRect(sx-7,sy-1,15,3);ctx.fillStyle='#fff';ctx.fillRect(sx-2,sy-2,5,5)};if(sparkle%2===0)star(-20,-18);else star(19,-18);ctx.restore()}
-function folder(x,y){ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.fillStyle='#452c15';ctx.fillRect(-42,-24,36,11);ctx.fillRect(-44,-13,88,49);ctx.fillStyle='#c38931';ctx.fillRect(-39,-20,29,11);ctx.fillStyle='#ffca64';ctx.fillRect(-41,-11,82,44);ctx.fillStyle='#ffea91';ctx.fillRect(-40,-10,80,6);ctx.fillStyle='#a9292b';ctx.fillRect(-36,-2,72,29);ctx.fillStyle='#e14c52';ctx.fillRect(-32,1,64,23);ctx.fillStyle='#fff7df';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 12px monospace';ctx.fillText('TOP',0,7);ctx.font='bold 10px monospace';ctx.fillText('SECRET',0,19);ctx.restore()}
+function folder(x,y){ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.fillStyle='#d6d6d6';ctx.fillRect(-28,-34,56,70);ctx.fillStyle='#f6f6f6';ctx.fillRect(-24,-30,48,62);ctx.fillStyle='#ffffff';ctx.fillRect(-22,-28,44,58);ctx.fillStyle='#e9e9e9';ctx.fillRect(12,-28,10,10);ctx.fillStyle='#ffffff';ctx.fillRect(14,-26,8,8);ctx.fillStyle='#dcdcdc';for(let yy=-16;yy<=18;yy+=10)ctx.fillRect(-14,yy,24,2);ctx.fillStyle='#a31f28';ctx.fillRect(-18,-2,36,18);ctx.fillStyle='#e0414d';ctx.fillRect(-16,0,32,14);ctx.fillStyle='#fff4f4';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 8px monospace';ctx.fillText('TOP-SECRET',0,8);ctx.fillStyle='#cfcfcf';ctx.fillRect(-6,22,20,2);ctx.restore()}
 function stockArt(x,y,phase){
  ctx.save();ctx.translate(Math.round(x),Math.round(y));
  // A miniature NVIDIA-green market chart with a rising trend, 8-bit grid.
@@ -176,7 +196,7 @@ function pickup(it){
  ctx.save();ctx.translate(x,y);const k=it.kind;
  ctx.shadowColor=k==='ring'?'#84dfff':k==='stock'?'#76fd6e':'#ffd16f';ctx.shadowBlur=9;
  // Deliberate thin 8-bit borders, no huge glowing dollar-sign tile.
- const w=k==='folder'?106:k==='stock'?88:72;
+ const w=k==='folder'?84:k==='stock'?88:k==='ring'?86:72;
  ctx.fillStyle='#061713';ctx.fillRect(-w/2,-41,w,86);
  ctx.strokeStyle=k==='ring'?'#5ad7f4':k==='stock'?'#65d25a':'#c79b4b';ctx.lineWidth=2;ctx.strokeRect(-w/2,-41,w,86);
  ctx.shadowBlur=0;
@@ -186,7 +206,7 @@ function pickup(it){
  else if(k==='gold')goldGpuArt(0,-4);
  else heartArt(0,-12);
  ctx.fillStyle=k==='stock'?'#b0f89f':'#f4e8ca';ctx.font='bold 9px monospace';ctx.textAlign='center';
- ctx.fillText(({ring:'RING TRAP',folder:'TOP-SECRET',gold:'GOLD GPU',stock:'NVIDIA STOCK',heart:'ALICE HEART'})[k],0,41);
+ ctx.fillText(({ring:'ENGAGEMENT RING',folder:'TOP-SECRET DOC',gold:'GOLD GPU',stock:'NVIDIA STOCK',heart:'ALICE HEART'})[k],0,41);
  ctx.restore();
 }
 function render(){ctx.imageSmoothingEnabled=false;ctx.clearRect(0,0,W,H);ctx.save();if(shake>0)ctx.translate(r(-shake,shake),r(-shake,shake));
@@ -211,14 +231,33 @@ ctx.textAlign='right';ctx.fillStyle='#f7a3b7';ctx.fillText('ALICE SPAWN ▶',W-1
 ctx.strokeStyle='#3d9169';ctx.setLineDash([4,11]);ctx.beginPath();ctx.moveTo(185,TOP);ctx.lineTo(185,BOTTOM);ctx.stroke();ctx.setLineDash([]);
 ctx.fillStyle='#86aa9b';ctx.font='bold 11px monospace';ctx.fillText(freeze>0?'❄ COMMITMENT ERROR · '+freeze.toFixed(1)+'s':market<3550?'⚠ NVIDIA CRASH IMMINENT · $'+(market-3500).toFixed(0)+'B LEFT!':rapid>0?'⚡ OVERCLOCK '+rapid.toFixed(1)+'s':multiplier>0?'▲ NVIDIA STOCK ×5':'ARROWS / 1–5 = MOVE    SPACE = FIRE    10 WAVES TO WIN',18,553);
  for(const it of items)pickup(it);
- for(const e of enemies){ctx.save();ctx.translate(e.x,e.y);let scale=e.kind==='sprint'?1.07:e.kind==='shield'?1.13:1;ctx.scale(scale,scale);if(e.hurt>0)ctx.globalAlpha=.75;const img=sprites.aliceRun[Math.floor(t*(e.kind==='sprint'?18:11)+e.phase)%sprites.aliceRun.length];ctx.scale(-1,1);drawSprite(img,0,-6+Math.sin(t*16+e.phase)*2,94,107);ctx.scale(-1,1);ctx.textAlign='center';rounded(-37,43,74,16,3,'#172020');ctx.fillStyle=e.kind==='shield'?'#ffcb78':e.kind==='sprint'?'#ffa5b9':'#f3c4c7';ctx.font='bold 10px monospace';ctx.fillText(e.kind==='normal'?'ALICE':e.kind.toUpperCase()+' ALICE',0,55);if(e.kind==='shield'){diamond(29,-9,t+e.phase,.64)}if(e.kind==='jump'){ctx.fillStyle='#c2d9ff';ctx.fillText('↕',-36,-13)}ctx.restore()}
+ for(const e of enemies){ctx.save();ctx.translate(e.x,e.y);let scale=e.kind==='sprint'?1.07:e.kind==='shield'?1.13:1;ctx.scale(scale,scale);if(e.hurt>0)ctx.globalAlpha=.75;const seq=[0,1,2,1,0,3,2,3];const runRate=e.kind==='sprint'?15:9.5;const frame=seq[Math.floor(t*runRate+e.phase*1.7)%seq.length]%sprites.aliceRun.length;const img=sprites.aliceRun[frame];const bob=Math.sin(t*runRate+e.phase)*1.5;const tilt=Math.sin(t*runRate+e.phase)*0.045;ctx.rotate(tilt);ctx.scale(-1,1);drawSprite(img,0,-5+bob,94,107);ctx.scale(-1,1);ctx.rotate(-tilt);ctx.textAlign='center';rounded(-37,43,74,16,3,'#172020');ctx.fillStyle=e.kind==='shield'?'#ffcb78':e.kind==='sprint'?'#ffa5b9':'#f3c4c7';ctx.font='bold 10px monospace';ctx.fillText(e.kind==='normal'?'ALICE':e.kind.toUpperCase()+' ALICE',0,55);if(e.kind==='shield'){diamond(29,-9,t+e.phase,.64)}if(e.kind==='jump'){ctx.fillStyle='#c2d9ff';ctx.fillText('↕',-36,-13)}ctx.restore()}
  if(boss){ctx.save();ctx.translate(boss.x,boss.y);ctx.scale(1.75,1.75);drawSprite(sprites.aliceIdle,0,0,176,214);ctx.restore();rounded(316,84,368,13,2,'#56323d','#f3a5b5');rounded(318,86,364*clamp(boss.hp/boss.maxhp,0,1),9,1,'#f17192');ctx.fillStyle='#fff2f0';ctx.textAlign='center';ctx.font='bold 12px monospace';ctx.fillText('BOSS ALICE · RELATIONSHIP STATUS',500,76);ctx.textAlign='left'}
  for(const ring of rings)diamond(ring.x,ring.y,t+ring.phase,1);
- const j=yl(lane);ctx.save();ctx.translate(104,j);const si=freeze>0?sprites.jensenIdle:shootTimer>.15?sprites.jensenAction:sprites.jensenIdle;drawSprite(freeze>0?frozenSprite(si):si,0,-5,118,125);if(freeze>0)iceAroundJensen(t);ctx.fillStyle='#15221b';ctx.fillRect(-36,45,72,16);ctx.fillStyle='#90ff78';ctx.textAlign='center';ctx.font='bold 12px monospace';ctx.fillText('JENSEN',0,57);ctx.restore();
+ const j=yl(lane);ctx.save();ctx.translate(111,j);
+ const firing=freeze<=0&&shootTimer>.03;
+ // The old wide action PNG was cropped at the left edge of Jensen's head.
+ // Keep his complete idle sprite as the base, and animate a separate throwing arm.
+ const si=sprites.jensenIdle;
+ drawSprite(freeze>0?frozenSprite(si):si,0,-6,99,118);
+ if(firing){
+   ctx.save();ctx.translate(25,-7);const extension=Math.max(0,Math.min(6,shootTimer*24));
+   ctx.fillStyle='#10171d';ctx.fillRect(-3,-7,33+extension,19);ctx.fillRect(23,-10,14,15);
+   ctx.fillStyle='#35373e';ctx.fillRect(0,-6,26+extension,12);
+   ctx.fillStyle='#f3b483';ctx.fillRect(27+extension,-7,12,13);
+   ctx.fillStyle='#fbd1a4';ctx.fillRect(34+extension,-4,7,7);
+   ctx.fillStyle='#79f447';ctx.fillRect(46+extension,-12,21,18);
+   ctx.fillStyle='#1e3525';ctx.fillRect(51+extension,-9,13,12);
+   ctx.fillStyle='#eddd77';for(let k=0;k<3;k++)ctx.fillRect(50+extension+k*5,6,3,4);
+   ctx.fillStyle='#b9ff94';ctx.fillRect(70+extension,-3,7,4);
+   ctx.restore();
+ }
+ if(freeze>0)iceAroundJensen(t);
+ ctx.fillStyle='#15221b';ctx.fillRect(-36,45,72,16);ctx.fillStyle='#90ff78';ctx.textAlign='center';ctx.font='bold 12px monospace';ctx.fillText('JENSEN',0,57);ctx.restore();
  for(const s of shots){ctx.save();ctx.translate(s.x,s.y);ctx.shadowColor=s.super?'#f6d376':'#8efc63';ctx.shadowBlur=s.super?25:13;rounded(s.super?-45:-23,s.super?-23:-13,s.super?90:46,s.super?46:26,4,s.super?'#b38933':'#67b74c','#e0ff86');ctx.shadowBlur=0;ctx.fillStyle='#203623';ctx.fillRect(s.super?-22:-11,s.super?-13:-8,s.super?43:21,s.super?26:16);ctx.fillStyle='#f9ffe2';ctx.font=s.super?'bold 16px monospace':'bold 9px monospace';ctx.textAlign='center';ctx.fillText(s.super?'H100':'GPU',0,s.super?5:3);ctx.restore()}
  for(const d of documents){ctx.save();ctx.translate(d.x,d.y);ctx.rotate(Math.sin(t*6+d.x)*.2);ctx.fillStyle='#f7f0c8';ctx.fillRect(-31,-16,63,32);ctx.fillStyle='#b44a49';ctx.font='bold 7px monospace';ctx.textAlign='center';ctx.fillText(d.word,0,2);ctx.restore()}
  for(const p of particles){ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.col;ctx.fillRect(p.x,p.y,p.size,p.size)}ctx.globalAlpha=1;
- for(const z of texts){ctx.save();ctx.globalAlpha=clamp(z.life,0,1);ctx.font='bold '+z.size+'px monospace';ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#08151b';ctx.strokeText(z.text,z.x,z.y);ctx.fillStyle=z.color;ctx.fillText(z.text,z.x,z.y);ctx.restore()}
+ for(const z of layoutText(texts.slice().sort((a,b)=>a.y-b.y))){ctx.save();ctx.globalAlpha=clamp(z.life,0,1);ctx.font='bold '+z.size+'px monospace';ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#08151b';ctx.strokeText(z.text,z.x,z.ry);ctx.fillStyle=z.color;ctx.fillText(z.text,z.x,z.ry);ctx.restore()}
  if(eventLife>0){rounded(347,16,306,29,2,'#473923','#d0a759');ctx.fillStyle='#ffe29a';ctx.textAlign='center';ctx.font='bold 15px monospace';ctx.fillText(eventTitle,500,36)}if(flash>0){ctx.globalAlpha=flash*.25;ctx.fillStyle='#ff3149';ctx.fillRect(0,TOP,W,BOTTOM-TOP);ctx.globalAlpha=1}ctx.restore()}
 function loop(ts){if(!last)last=ts;const dt=(ts-last)/1000;last=ts;update(dt);render();requestAnimationFrame(loop)}
 function pause(){if(state==='running'){state='paused';modal('GAME PAUSED','GPU COOLING','Alice can wait. The GPUs are taking a break.','RESUME →')}else if(state==='paused'){state='running';el('overlay').classList.add('hidden')}}
