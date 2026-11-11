@@ -34,15 +34,10 @@ async function json(req:Request) {
   if(!val||typeof val!=='object'||Array.isArray(val)) throw new Error('Expected JSON object');
   return val as Record<string,unknown>;
 }
-async function throttle(uid:string, action:'events'|'submit', max:number, perSeconds:number) {
-  const start = new Date(Math.floor(Date.now()/(perSeconds*1000))*perSeconds*1000).toISOString();
-  const { data, error }=await db.from('game_rate_limits').select('request_count').eq('user_id',uid).eq('action',action).eq('window_start',start).maybeSingle();
-  if(error) throw error;
-  const n=(data?.request_count||0)+1;
-  if(n>max) throw new Error('Rate limit exceeded');
-  const result=await db.from('game_rate_limits').upsert({user_id:uid,action,window_start:start,request_count:n},{onConflict:'user_id,action,window_start'});
-  if(result.error) throw result.error;
-  // Note: low-volume best-effort per-account rate limit, not a distributed atomic limiter.
+async function throttle(uid:string, action:'visit'|'start'|'events'|'submit', max:number, perSeconds:number) {
+  const {data,error}=await db.rpc('game_consume_rate_limit',{p_user:uid,p_action:action,p_seconds:perSeconds,p_max:max});
+  if(error)throw error;
+  if(!data)throw new Error('Rate limit exceeded');
 }
 async function leaderboard(url:URL) {
   const range=['today','week','all'].includes(url.searchParams.get('range')||'')?url.searchParams.get('range')!:'all';
@@ -56,6 +51,7 @@ async function leaderboard(url:URL) {
   return {range,rows:result};
 }
 async function visit(uid:string,body:Record<string,unknown>){
+  await throttle(uid,'visit',15,60);
   if(!validUUID(body.visitId)) throw new Error('Invalid visit');
   const device = ['desktop','mobile','tablet'].includes(String(body.device))?String(body.device):'desktop';
   const referrer = clean(body.referrer,120);
@@ -67,6 +63,7 @@ async function visit(uid:string,body:Record<string,unknown>){
   return {ok:true};
 }
 async function start(uid:string,body:Record<string,unknown>){
+  await throttle(uid,'start',20,60);
   if(!validUUID(body.sessionId)) throw new Error('Invalid session');
   const {error:e}=await db.from('game_sessions').upsert({id:body.sessionId,user_id:uid},{onConflict:'id',ignoreDuplicates:true});
   if(e) throw e;
