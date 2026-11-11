@@ -13,7 +13,7 @@
   function setupUI(){
     const css=document.createElement('style');css.textContent=`
       .hallEntry{padding:8px 0 0;text-align:center;color:#b5c9b8;font:700 11px 'Silkscreen',monospace}
-      .hallEntry #jvaTop10{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;max-width:410px;max-height:78px;overflow-y:auto;margin:7px auto 0;font:10px monospace;color:#a8c7aa;text-align:left}.hallEntry button,.jvaButton{background:#192a2a;border:1px solid #536954;color:#dafaaf;padding:7px 11px;font:700 11px 'Silkscreen',monospace;cursor:pointer}
+      .hallEntry #jvaTop10{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;max-width:410px;max-height:98px;overflow-y:auto;margin:7px auto 0;font:10px monospace;color:#a8c7aa;text-align:left}.hallEntry button,.jvaButton{background:#192a2a;border:1px solid #536954;color:#dafaaf;padding:7px 11px;font:700 11px 'Silkscreen',monospace;cursor:pointer}
       .hallEntry button:hover,.jvaButton:hover{border-color:#9be96a}
       .frame .overlay{overflow-y:auto}.frame .overlay .modal{max-height:100%;overflow-y:auto}.jvaModal[hidden],.jvaScores[hidden]{display:none!important}
       .jvaModal{position:fixed;inset:0;z-index:99;display:grid;place-items:center;background:#040b10ed;padding:12px}
@@ -33,7 +33,7 @@
     `;document.head.append(css);
     const intro=document.querySelector('#overlay .modal');
     if(intro){
-      const row=document.createElement('div');row.className='hallEntry';row.innerHTML='<button id="jvaOpenBoard" type="button">WALL STREET HALL OF FAME</button><div id="jvaTop10" class="jvaTopTen"></div>';intro.append(row);
+      const row=document.createElement('div');row.className='hallEntry';row.innerHTML='<div style="font:700 11px Silkscreen,monospace;color:#e4cf8d">WALL STREET HALL OF FAME</div><div id="jvaTop10" class="jvaTopTen" aria-live="polite">Loading Top 10…</div><button id="jvaOpenBoard" type="button" style="margin-top:7px">VIEW TOP 100</button>';intro.append(row);
       $('jvaOpenBoard').onclick=()=>openLeaderboard();
       const panel=document.createElement('div');panel.className='jvaEndPanel';panel.id='jvaEndPanel';panel.hidden=true;
       panel.innerHTML='<div id="jvaFinal" class="jvaMuted"></div><div class="jvaActions"><input id="jvaNick" maxlength="20" placeholder="Nickname (max 20)" aria-label="Nickname"><button id="jvaSubmit" class="jvaButton" type="button">SUBMIT SCORE</button></div><p id="jvaResult" class="jvaMuted" role="status"></p><div class="jvaActions"><button id="jvaShare" class="jvaButton" type="button">SHARE ON X</button><button id="jvaFullBoard" class="jvaButton" type="button">LEADERBOARD</button></div>';
@@ -65,7 +65,9 @@
     return result;
   }
   async function init(){
-    if(!ready){$('jvaTop10').textContent='Online ranking coming soon';return}
+    // Public ranking loads immediately, without an account or Auth session.
+    loadTop10();
+    if(!ready)return;
     try {
       const mod=await import('https://esm.sh/@supabase/supabase-js@2.57.0');
       state.client=mod.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
@@ -79,10 +81,10 @@
       request('visit','POST',{visitId:state.visitId,device:device(),referrer:ref,utmSource:(query.get('utm_source')||'').slice(0,80)}).catch(()=>{});
       try{localStorage.setItem('jva_prev_visit',new Date().toISOString())}catch{}
       event('page_view',{device:device(),returning:!!previous});
-      if(state.sessionId){await request('start','POST',{sessionId:state.sessionId}).catch(()=>{});event('game_start');event('wave_start',{wave:1,valuation:3750,score:0})}
+      // If the player started before anonymous identity was ready, syncStart handles it.
+      if(state.pendingStart)syncStart()
       if($('jvaSubmit'))$('jvaSubmit').disabled=false;
-      loadTop10();
-    } catch(error){console.warn('Online scores unavailable:',error);$('jvaTop10').textContent='Leaderboard temporarily unavailable';loadTop10()}
+    } catch(error){console.warn('Invisible player identity unavailable:',error);if($('jvaSubmit'))$('jvaSubmit').disabled=true}
   }
   function device(){const w=Math.min(screen?.width||innerWidth,innerWidth);return w<600?'mobile':w<1024?'tablet':'desktop'}
   function event(name,properties={}){
@@ -108,6 +110,7 @@
   function start(){
     state.sessionId=uuid();state.started=Date.now();state.results=null;state.rank=null;
     show($('jvaEndPanel'),false);
+    show(document.querySelector('.hallEntry'),true);
     state.pendingStart=!state.online;
     if(state.online)syncStart();
   }
@@ -115,8 +118,11 @@
     state.results={victory,score,wave,valuation};
     const panel=$('jvaEndPanel');if(panel)show(panel,true);
     if($('jvaFinal'))$('jvaFinal').textContent=`${victory?'MISSION ACCOMPLISHED':'MISSION FAILED'}  |  ${Number(score).toLocaleString()} PTS  |  WAVE ${wave}  |  $${(Number(valuation)/1000).toFixed(2)}T`;
-    if($('jvaResult'))$('jvaResult').textContent=state.online?'Enter a nickname to join the global ranking':'Offline: ranking unavailable until connected';
+    if($('jvaResult'))$('jvaResult').textContent=state.online?'Enter your nickname to post your score':'Score submission unavailable right now. You can still play.';
     if($('jvaSubmit'))$('jvaSubmit').disabled=!state.online;
+    // Public Hall of Fame remains visible on the initial screen; the end screen
+    // needs only a nickname, submission, share, and play again.
+    show(document.querySelector('.hallEntry'),false);
     event(victory?'game_victory':'game_over',{score,wave,valuation,duration:Math.floor((Date.now()-state.started)/1000)});flush();
   }
   async function submit(){
