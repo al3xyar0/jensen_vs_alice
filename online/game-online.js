@@ -13,9 +13,9 @@
   function setupUI(){
     const css=document.createElement('style');css.textContent=`
       .hallEntry{padding:8px 0 0;text-align:center;color:#b5c9b8;font:700 11px 'Silkscreen',monospace}
-      .hallEntry #jvaTop10{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;max-width:410px;margin:7px auto 0;font:10px monospace;color:#a8c7aa;text-align:left}.hallEntry button,.jvaButton{background:#192a2a;border:1px solid #536954;color:#dafaaf;padding:7px 11px;font:700 11px 'Silkscreen',monospace;cursor:pointer}
+      .hallEntry #jvaTop10{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;max-width:410px;max-height:78px;overflow-y:auto;margin:7px auto 0;font:10px monospace;color:#a8c7aa;text-align:left}.hallEntry button,.jvaButton{background:#192a2a;border:1px solid #536954;color:#dafaaf;padding:7px 11px;font:700 11px 'Silkscreen',monospace;cursor:pointer}
       .hallEntry button:hover,.jvaButton:hover{border-color:#9be96a}
-      .jvaModal[hidden],.jvaScores[hidden]{display:none!important}
+      .frame .overlay{overflow-y:auto}.frame .overlay .modal{max-height:100%;overflow-y:auto}.jvaModal[hidden],.jvaScores[hidden]{display:none!important}
       .jvaModal{position:fixed;inset:0;z-index:99;display:grid;place-items:center;background:#040b10ed;padding:12px}
       .jvaSheet{width:min(610px,100%);max-height:90vh;overflow:auto;background:#102025;border:2px solid #54705b;box-shadow:8px 8px #050b0e;padding:20px;color:#eaf3df;font:13px 'Silkscreen',monospace}
       .jvaSheet h2{color:#a4fa77;font:700 clamp(18px,3vw,26px) 'Silkscreen',monospace;margin:0 0 15px}
