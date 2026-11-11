@@ -7,8 +7,14 @@
 - **GitHub:** The frontend and admin dashboard are staged on `feature/supabase-leaderboard-analytics`. **The public `main` game is unchanged.**
 - **Tests:** Database object existence and RLS verified. Real anonymous sign-in, score submission, and live ranking have not yet passed browser end-to-end tests.
 
-## User action required before live testing
-1. In [Hanara authentication providers](https://supabase.com/dashboard/project/rxpuzmguuseaogexovfg/auth/providers), **enable Anonymous Sign-Ins**. This is a project-wide setting, so review current Hanara auth behavior before enabling it. Existing Hanara row-level policies were inspected; no Hanara application policies have been changed.
+## Player experience (zero visible login)
+1. Open the game and see the public Top 10 immediately.
+2. Press START — no registration or account prompts, anonymous identity is provisioned silently by Supabase in the background.
+3. After the game ends, type a nickname (1-20 characters), click SUBMIT SCORE, and receive a rank.
+4. Viewing Top 100 never requires authentication. The admin dashboard is separate and restricted.
+
+## One-time developer setting before live testing
+1. In [Hanara authentication providers](https://supabase.com/dashboard/project/rxpuzmguuseaogexovfg/auth/providers), **enable Anonymous Sign-Ins** for invisible background score ownership. Players never see a login prompt. This is a project-wide setting, so review current Hanara auth behavior before enabling it. Existing Hanara row-level policies were inspected; no Hanara application policies have been changed.
 2. Configure reasonable anonymous sign-in rate limits/CAPTCHA where supported. Edge-function per-user atomic rate limiting cannot stop attackers creating many new anonymous accounts.
 3. For private admin access, enable email OTP/magic link for a permanent account and allow the eventual redirect `https://al3xyar0.github.io/jensen_vs_alice/online/admin.html`. After signing in as that permanent user and verifying their identity, grant only their UUID:
 
