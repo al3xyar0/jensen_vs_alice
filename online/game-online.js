@@ -13,7 +13,7 @@
   function setupUI(){
     const css=document.createElement('style');css.textContent=`
       .hallEntry{padding:8px 0 0;text-align:center;color:#b5c9b8;font:700 11px 'Silkscreen',monospace}
-      .hallEntry button,.jvaButton{background:#192a2a;border:1px solid #536954;color:#dafaaf;padding:7px 11px;font:700 11px 'Silkscreen',monospace;cursor:pointer}
+      .hallEntry #jvaTop10{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;max-width:410px;margin:7px auto 0;font:10px monospace;color:#a8c7aa;text-align:left}.hallEntry button,.jvaButton{background:#192a2a;border:1px solid #536954;color:#dafaaf;padding:7px 11px;font:700 11px 'Silkscreen',monospace;cursor:pointer}
       .hallEntry button:hover,.jvaButton:hover{border-color:#9be96a}
       .jvaModal[hidden],.jvaScores[hidden]{display:none!important}
       .jvaModal{position:fixed;inset:0;z-index:99;display:grid;place-items:center;background:#040b10ed;padding:12px}
@@ -71,6 +71,8 @@
       request('visit','POST',{visitId:state.visitId,device:device(),referrer:ref,utmSource:(query.get('utm_source')||'').slice(0,80)}).catch(()=>{});
       try{localStorage.setItem('jva_prev_visit',new Date().toISOString())}catch{}
       event('page_view',{device:device(),returning:!!previous});
+      if(state.sessionId){await request('start','POST',{sessionId:state.sessionId}).catch(()=>{});event('game_start');event('wave_start',{wave:1,valuation:3750,score:0})}
+      if($('jvaSubmit'))$('jvaSubmit').disabled=false;
       loadTop10();
     } catch(error){console.warn('Online scores disabled:',error);$('jvaTop10').textContent='Offline mode — gameplay unaffected'}
   }
@@ -116,7 +118,7 @@
     try{const response=await request('leaderboard?range='+range+'&limit='+limit);renderRows(response.rows);$('jvaLoading').textContent=response.rows.length?'':'No scores yet. Be first.'}
     catch(e){$('jvaLoading').textContent='Could not load rankings: '+e.message}
   }
-  async function loadTop10(){if(!$('jvaTop10'))return;try{const res=await request('leaderboard?range=all&limit=10');$('jvaTop10').textContent=res.rows.slice(0,3).map(x=>`#${x.rank} ${x.nickname}: ${Number(x.score).toLocaleString()}`).join('   ')||'No scores yet — be first.'}catch{$('jvaTop10').textContent='Rankings temporarily unavailable'}}
+  async function loadTop10(){if(!$('jvaTop10'))return;try{const res=await request('leaderboard?range=all&limit=10');const panel=$('jvaTop10');panel.replaceChildren();if(!res.rows.length){panel.textContent='No scores yet — be first.';return}for(const row of res.rows.slice(0,10)){const line=document.createElement('span');line.textContent=`#${row.rank} ${row.nickname}: ${Number(row.score).toLocaleString()}`;panel.append(line)}}catch{$('jvaTop10').textContent='Rankings temporarily unavailable'}}
   function openLeaderboard(){show($('jvaModal'),true);loadBoard(state.range,100)}
   window.JVAOnline={start,finish,event,flush,openLeaderboard,get state(){return state}};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setupUI();init()});else{setupUI();init()}
