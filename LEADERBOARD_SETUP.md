@@ -1,53 +1,53 @@
-# Jensen vs Alice — Online Leaderboard & Analytics
+# Jensen vs Alice — Global leaderboard and analytics
 
-**Status: staged on `feature/supabase-leaderboard-analytics`, NOT live.** The game on `main` remains unchanged. Create a **new Supabase project** for this game; do not reuse the Signal15/Hanara databases.
+## Current deployment state
+- **Existing Supabase project:** Hanara (`rxpuzmguuseaogexovfg`) in `us-east-1`.
+- **Database:** Game-only `public.game_*` tables and atomic rate-limit RPC are deployed and verified.
+- **Edge Function:** `jva-game-api` version 2 is ACTIVE in Hanara; the function validates Supabase Auth JWTs itself.
+- **GitHub:** The frontend and admin dashboard are staged on `feature/supabase-leaderboard-analytics`. **The public `main` game is unchanged.**
+- **Tests:** Database object existence and RLS verified. Real anonymous sign-in, score submission, and live ranking have not yet passed browser end-to-end tests.
 
-## Architecture
-
-- GitHub Pages continues serving the existing `index.html` game. New JS hooks are optional and never block the frame loop.
-- `online/game-online.js` uses a *Supabase Auth anonymous session* to own a game session. No login screen for players. Auth identity comes from a verified JWT, not the locally generated visitor ID.
-- `supabase/functions/game-api` is the only write/read API for game data. It verifies JWTs server-side with `auth.getUser` even though `verify_jwt=false` in config, and uses service credentials only inside the function.
-- SQL enables RLS on every game table, grants **no browser direct table access**, and keeps public leaderboard output to nickname, rank, wave, score, and game stats.
-- `online/admin.html` is a static admin shell, but private metrics only load if the caller has a **permanent Auth account** listed in `game_admins`. Merely knowing the URL grants no access.
-- The score filter checks elapsed time, wave plausibility, and basic value ranges. **It is NOT cheat-proof or server-verified gameplay.** A determined attacker can forge results; robust verification requires a trusted server replay/authoritative simulation.
-
-## Create the Supabase project (your next action)
-
-1. Create a new Supabase project, e.g. **Jensen vs Alice**, in the organization you prefer. Projects may incur charges; review Supabase's quoted cost before confirming.
-2. Send the **project reference** (the string in your project's URL `/project/<ref>`). **Do not send passwords, secret/service-role keys, or database credentials.** The connected Supabase app can discover the project and deploy it.
-3. In Supabase Auth, turn on **Anonymous Sign-Ins** and configure abuse protection / CAPTCHA if available. Set a sensible sign-in rate limit.
-4. Enable email OTP/magic-link login for your personal permanent admin user. Configure redirect `https://al3xyar0.github.io/jensen_vs_alice/online/admin.html`.
-5. Schema: `supabase/migrations/20261111000000_game_platform.sql` (run on dedicated game project only).
-6. Edge Function: deploy `supabase/functions/game-api/index.ts` under name `game-api` with JWT gateway verification disabled, because the function verifies its JWT itself. **Never disable the internal `auth.getUser` check.** Supabase supplies `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to functions; never copy these keys into GitHub Pages.
-7. In `online/config.js`, set your project's URL and its **publishable** (`sb_publishable_...`) key. These are intended to be public.
-8. Create a permanent Supabase Auth user for yourself by using `online/admin.html` (email OTP). Once your user is created and email verified, grant that specific `auth.users.id` admin access:
+## User action required before live testing
+1. In [Hanara authentication providers](https://supabase.com/dashboard/project/rxpuzmguuseaogexovfg/auth/providers), **enable Anonymous Sign-Ins**. This is a project-wide setting, so review current Hanara auth behavior before enabling it. Existing Hanara row-level policies were inspected; no Hanara application policies have been changed.
+2. Configure reasonable anonymous sign-in rate limits/CAPTCHA where supported. Edge-function per-user atomic rate limiting cannot stop attackers creating many new anonymous accounts.
+3. For private admin access, enable email OTP/magic link for a permanent account and allow the eventual redirect `https://al3xyar0.github.io/jensen_vs_alice/online/admin.html`. After signing in as that permanent user and verifying their identity, grant only their UUID:
 
    ```sql
-   insert into public.game_admins (user_id) values ('YOUR_AUTH_USER_UUID');
+   insert into public.game_admins (user_id) values ('VERIFIED_ADMIN_AUTH_UID')
+   on conflict (user_id) do nothing;
    ```
 
-9. Test as a visitor: open the feature-branch preview in a local HTTP server, start/finish a game, submit a score, check `game_leaderboard_scores` and `game_events`; check `/admin` rejects an anonymous player. Only then merge into `main` and let GitHub Pages deploy.
-
-## Data retention / performance
-
-- `game_visits`: one row per page load; `game_sessions`: one row per game; `game_events`: batched, meaningful events only.
-- For small volume, the metrics Edge Function reads up to 10,000 rows per dataset. It explicitly flags results as sampled. For larger traffic, move aggregations into indexed SQL RPCs and add daily materialized summaries.
-- Once settled, configure scheduled deletion of `game_rate_limits` entries older than two days and `game_events` older than your chosen retention period (e.g. 90 days). This code intentionally doesn't delete user data automatically.
+   Do not add anonymous users to `game_admins`. Knowing the static `online/admin.html` URL does not grant access to analytics; every metrics request is checked server-side against this table and verified non-anonymous Auth.
+4. Test end-to-end on the feature branch before merging. For a local preview, serve the repository with an HTTP server on `localhost` so the Edge Function CORS permits it.
 
 ## Files
+- `index.html`: Original game and minimal, non-blocking telemetry calls. No scoring, animation or gameplay changes.
+- `online/config.js`: Hanara API URL and **publishable** browser key only. No secret credentials.
+- `online/game-online.js`: Anonymous identity, Top 10 start screen, Top 100 leaderboard, filtered rankings, game-over score submission, X sharing, batched telemetry.
+- `online/admin.html`: Private admin analytics frontend.
+- `supabase/migrations/20261111000000_game_platform.sql`: Isolated database tables with RLS and disabled client table access.
+- `supabase/migrations/20261111001000_game_atomic_limits.sql`: Atomic request limiting on game-only database objects.
+- `supabase/functions/jva-game-api/index.ts`: Actual Edge Function deployed in Hanara.
+- `supabase/config.toml`: JWT verified within the function, so gateway `verify_jwt=false`.
 
-- `index.html` — original game + small nonblocking analytics calls; no gameplay rewrite.
-- `online/config.js` — placeholder until a project is selected.
-- `online/game-online.js` — optional browser client and leaderboard UI.
-- `online/admin.html` — private analytics dashboard shell.
-- `supabase/migrations/*.sql` — RLS and isolated tables.
-- `supabase/functions/game-api/index.ts` — ingestion, leaderboard, score submission, admin metrics.
-- `supabase/config.toml` — Edge Function gateway setup.
+## API routes
+`https://rxpuzmguuseaogexovfg.supabase.co/functions/v1/jva-game-api/`
 
-## Limitations / follow-up work before production
+- Public GET `leaderboard?range=all|week|today&limit=10|100`.
+- JWT-protected POST `visit`, `start`, `events`, `submit`.
+- Verified permanent admin GET `admin?days=7|30|90`.
 
-- An atomic database counter limits requests per authenticated account; pair it with anonymous-sign-in CAPTCHA and gateway protections to mitigate bots that create many accounts. It is not an IP-level limiter.
-- Anonymous Auth creates durable temporary Auth users. Configure retention/cleanup policies; new browsers can create multiple accounts.
-- Preventing cheating requires replay validation or a server-authoritative game engine. Mark results as *plausibility checked*, not cryptographically verified.
-- Admin dashboard reports up to 10,000 recent rows per category and lacks the full advanced retention/valuation charts in the original brief. Expand after verifying real usage and event schemas.
-- Test Chrome, Safari, and mobile manually after Supabase project credentials are connected. The branch is not a claim of complete end-to-end deployment.
+## Security and privacy
+- All game tables have RLS enabled and **no direct anonymous or authenticated table grants**; public leaderboard data comes through filtered server responses only.
+- Anonymous users use Supabase Auth for ownership; no visible registration is required.
+- Writes validate ownership, allowed events, bounded payloads, score plausibility, and per-account atomic request limits.
+- Scores are **plausibility-checked, not cryptographically verified or cheat-proof**. Stronger anti-cheat requires a trusted server simulation or replay validation.
+- No raw IP, email, precise location, or browser fingerprint is written to the game analytics tables. Supabase Auth separately processes normal authentication metadata.
+- Keep project service keys in Supabase server-side environment only.
+
+## Not ready for production yet
+- Enable project-wide anonymous sign-in manually.
+- Verify real page view, session start, completed game, score submission, global rank, and time filters.
+- Grant and verify the specific permanent admin user.
+- Run final Chrome/Safari/mobile tests and merge the feature branch only when they pass.
+- Current admin aggregates are capped at 10k records per dataset; dashboard warns if results are sampled.
