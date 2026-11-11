@@ -4,8 +4,8 @@
   const site='https://al3xyar0.github.io/jensen_vs_alice/';
   const config=window.JVA_SUPABASE||{};
   const ready=Boolean(config.url && config.publishableKey && !String(config.url).includes('REPLACE'));
-  const api=ready?config.url.replace(/\/$/,'')+'/functions/v1/game-api/':'';
-  const state={client:null,user:null,sessionId:null,visitId:null,started:0,events:[],inflight:false,rank:null,results:null,range:'all',nickname:'',online:false};
+  const api=ready?config.url.replace(/\/$/,'')+'/functions/v1/jva-game-api/':'';
+  const state={client:null,user:null,sessionId:null,visitId:null,started:0,events:[],inflight:false,rank:null,results:null,range:'all',nickname:'',online:false,pendingStart:false,startPromise:null};
   const uuid=()=>crypto.randomUUID();
   const $=id=>document.getElementById(id);
   const safe=(s)=>String(s==null?'':s);
@@ -21,7 +21,7 @@
       .jvaSheet h2{color:#a4fa77;font:700 clamp(18px,3vw,26px) 'Silkscreen',monospace;margin:0 0 15px}
       .jvaSheet input{background:#07161c;color:#fff;border:1px solid #6c907d;padding:10px;font:14px monospace;max-width:100%;width:220px}
       .jvaFilters,.jvaActions{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
-      .jvaBoard{width:100%;border-collapse:collapse;font:12px monospace;text-align:left}
+      .jvaTopTen{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 10px;max-height:124px;overflow:auto;text-align:left;margin-top:8px}.jvaTopTen div{font:10px monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.jvaBoard{width:100%;border-collapse:collapse;font:12px monospace;text-align:left}
       .jvaBoard th{color:#8ea89c;border-bottom:1px solid #53685a;padding:7px 4px}
       .jvaBoard td{padding:8px 4px;border-bottom:1px solid #283c3c}
       .jvaBoard tr:nth-child(1) td:first-child{color:#ffe18b}.jvaBoard tr:nth-child(2) td:first-child{color:#d4dfe6}.jvaBoard tr:nth-child(3) td:first-child{color:#e1ae83}
@@ -33,7 +33,7 @@
     `;document.head.append(css);
     const intro=document.querySelector('#overlay .modal');
     if(intro){
-      const row=document.createElement('div');row.className='hallEntry';row.innerHTML='<button id="jvaOpenBoard" type="button">WALL STREET HALL OF FAME</button><div id="jvaTop10" class="jvaMuted" style="margin-top:8px"></div>';intro.append(row);
+      const row=document.createElement('div');row.className='hallEntry';row.innerHTML='<button id="jvaOpenBoard" type="button">WALL STREET HALL OF FAME</button><div id="jvaTop10" class="jvaTopTen"></div>';intro.append(row);
       $('jvaOpenBoard').onclick=()=>openLeaderboard();
       const panel=document.createElement('div');panel.className='jvaEndPanel';panel.id='jvaEndPanel';panel.hidden=true;
       panel.innerHTML='<div id="jvaFinal" class="jvaMuted"></div><div class="jvaActions"><input id="jvaNick" maxlength="20" placeholder="Nickname (max 20)" aria-label="Nickname"><button id="jvaSubmit" class="jvaButton" type="button">SUBMIT SCORE</button></div><p id="jvaResult" class="jvaMuted" role="status"></p><div class="jvaActions"><button id="jvaShare" class="jvaButton" type="button">SHARE ON X</button><button id="jvaFullBoard" class="jvaButton" type="button">LEADERBOARD</button></div>';
@@ -50,11 +50,19 @@
     modal.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>loadBoard(b.dataset.range,100));
   }
   async function request(path,method='GET',body){
-    if(!state.client||!state.user)throw new Error('Leaderboard connection unavailable');
-    const {data,error}=await state.client.auth.getSession();if(error||!data.session)throw new Error('Sign-in expired');
-    const url=api+path;
-    const response=await fetch(url,{method,headers:{'apikey':config.publishableKey,'authorization':'Bearer '+data.session.access_token,'content-type':'application/json'},body:method==='POST'?JSON.stringify(body):undefined});
-    const result=await response.json();if(!response.ok)throw new Error(result.error||'Server unreachable');return result;
+    if(!ready)throw new Error('Leaderboard is not configured');
+    const isPublic=method==='GET'&&path.startsWith('leaderboard?');
+    const headers={'apikey':config.publishableKey,'content-type':'application/json'};
+    if(!isPublic){
+      if(!state.client||!state.user)throw new Error('Player identity is not ready');
+      const {data,error}=await state.client.auth.getSession();
+      if(error||!data.session)throw new Error('Anonymous session expired');
+      headers.authorization='Bearer '+data.session.access_token;
+    }
+    const response=await fetch(api+path,{method,headers,body:method==='POST'?JSON.stringify(body):undefined});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||'Server unreachable');
+    return result;
   }
   async function init(){
     if(!ready){$('jvaTop10').textContent='Online ranking coming soon';return}
@@ -63,7 +71,7 @@
       state.client=mod.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
       let {data:{session}}=await state.client.auth.getSession();
       if(!session){const r=await state.client.auth.signInAnonymously();if(r.error)throw r.error;session=r.data.session}
-      state.user=session.user;state.online=true;
+      state.user=session.user;state.online=true;if(state.pendingStart)syncStart();if(state.results){$('jvaSubmit').disabled=false;$('jvaResult').textContent='Enter a nickname to join the global ranking';}
       let previous=null;try{previous=localStorage.getItem('jva_prev_visit')}catch{}
       state.visitId=uuid();
       const ref=(()=>{try{return new URL(document.referrer).hostname.slice(0,120)}catch{return ''}})();
@@ -74,7 +82,7 @@
       if(state.sessionId){await request('start','POST',{sessionId:state.sessionId}).catch(()=>{});event('game_start');event('wave_start',{wave:1,valuation:3750,score:0})}
       if($('jvaSubmit'))$('jvaSubmit').disabled=false;
       loadTop10();
-    } catch(error){console.warn('Online scores disabled:',error);$('jvaTop10').textContent='Offline mode — gameplay unaffected'}
+    } catch(error){console.warn('Online scores unavailable:',error);$('jvaTop10').textContent='Leaderboard temporarily unavailable';loadTop10()}
   }
   function device(){const w=Math.min(screen?.width||innerWidth,innerWidth);return w<600?'mobile':w<1024?'tablet':'desktop'}
   function event(name,properties={}){
@@ -88,8 +96,20 @@
     const batch=state.events.splice(0,40);state.inflight=true;
     try{await request('events','POST',{events:batch})}catch(e){console.warn('Analytics deferred:',e);state.events.unshift(...batch.slice(0,20))}finally{state.inflight=false}
   }
-  function start(){state.sessionId=uuid();state.started=Date.now();state.results=null;state.rank=null;show($('jvaEndPanel'),false);
-    if(state.online){request('start','POST',{sessionId:state.sessionId}).then(()=>{event('game_start');event('wave_start',{wave:1,valuation:3750,score:0})}).catch(e=>console.warn('Session not synced',e))}
+  function syncStart(){
+    if(!state.sessionId||!state.online)return;
+    state.pendingStart=false;
+    const id=state.sessionId;
+    state.startPromise=request('start','POST',{sessionId:id}).then(()=>{
+      event('game_start',{});
+      event('wave_start',{wave:1,valuation:3750,score:0});
+    }).catch(e=>console.warn('Online session sync unavailable:',e));
+  }
+  function start(){
+    state.sessionId=uuid();state.started=Date.now();state.results=null;state.rank=null;
+    show($('jvaEndPanel'),false);
+    state.pendingStart=!state.online;
+    if(state.online)syncStart();
   }
   function finish(victory,score,wave,valuation){
     state.results={victory,score,wave,valuation};
@@ -103,7 +123,7 @@
     if(!state.results||!state.online)return;
     const nick=($('jvaNick').value||'').trim();if(!nick||nick.length>20){$('jvaResult').textContent='Enter a nickname (1–20 chars)';return}
     const b=$('jvaSubmit');b.disabled=true;$('jvaResult').textContent='Submitting…';
-    try{const result=await request('submit','POST',{sessionId:state.sessionId,nickname:nick,...state.results});
+    try{if(state.startPromise)await state.startPromise;const result=await request('submit','POST',{sessionId:state.sessionId,nickname:nick,...state.results});
       if(!result.accepted)throw new Error(result.reason||'Score not accepted');
       state.rank=result.rank;state.nickname=nick;
       $('jvaResult').textContent=result.rank?'YOUR GLOBAL RANK: #'+result.rank+'  —  BEST SCORE '+result.bestScore.toLocaleString():'Score accepted. Rank pending.';
@@ -118,7 +138,20 @@
     try{const response=await request('leaderboard?range='+range+'&limit='+limit);renderRows(response.rows);$('jvaLoading').textContent=response.rows.length?'':'No scores yet. Be first.'}
     catch(e){$('jvaLoading').textContent='Could not load rankings: '+e.message}
   }
-  async function loadTop10(){if(!$('jvaTop10'))return;try{const res=await request('leaderboard?range=all&limit=10');const panel=$('jvaTop10');panel.replaceChildren();if(!res.rows.length){panel.textContent='No scores yet — be first.';return}for(const row of res.rows.slice(0,10)){const line=document.createElement('span');line.textContent=`#${row.rank} ${row.nickname}: ${Number(row.score).toLocaleString()}`;panel.append(line)}}catch{$('jvaTop10').textContent='Rankings temporarily unavailable'}}
+  async function loadTop10(){
+    const root=$('jvaTop10');if(!root)return;
+    if(!ready){root.textContent='Online ranking coming soon';return;}
+    try{
+      const res=await request('leaderboard?range=all&limit=10');
+      root.replaceChildren();
+      for(const x of res.rows){
+        const item=document.createElement('div');
+        item.textContent='#'+x.rank+' '+x.nickname+'  '+Number(x.score).toLocaleString();
+        root.append(item);
+      }
+      if(!res.rows.length)root.textContent='No scores yet. Be first.';
+    }catch{root.textContent='Rankings temporarily unavailable';}
+  }
   function openLeaderboard(){show($('jvaModal'),true);loadBoard(state.range,100)}
   window.JVAOnline={start,finish,event,flush,openLeaderboard,get state(){return state}};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setupUI();init()});else{setupUI();init()}
