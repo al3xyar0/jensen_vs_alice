@@ -1,4 +1,4 @@
-[functions.game-api]
+[functions.jva-game-api]
 verify_jwt = false
 # The function explicitly verifies the Supabase Auth JWT using auth.getUser(token).
 # Required for publishable keys and CORS preflight. No unauthenticated writes.
