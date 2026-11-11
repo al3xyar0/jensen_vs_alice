@@ -1,8 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
 
-const URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_ENDPOINT = Deno.env.get('SUPABASE_URL')!;
 const SECRET = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const db = createClient(URL, SECRET, { auth: { persistSession: false, autoRefreshToken: false } });
+const db = createClient(SUPABASE_ENDPOINT, SECRET, { auth: { persistSession: false, autoRefreshToken: false } });
 const GAME_ORIGIN = 'https://al3xyar0.github.io';
 const cors = (origin: string | null) => ({
   'Access-Control-Allow-Origin': origin && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ? origin : GAME_ORIGIN,
