@@ -4,8 +4,9 @@ const SUPABASE_ENDPOINT = Deno.env.get('SUPABASE_URL')!;
 const SECRET = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const db = createClient(SUPABASE_ENDPOINT, SECRET, { auth: { persistSession: false, autoRefreshToken: false } });
 const GAME_ORIGIN = 'https://al3xyar0.github.io';
+const GAME_ORIGINS = new Set([GAME_ORIGIN,'https://jensenvsalice.xyz','https://www.jensenvsalice.xyz']);
 const cors = (origin: string | null) => ({
-  'Access-Control-Allow-Origin': origin && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ? origin : GAME_ORIGIN,
+  'Access-Control-Allow-Origin': origin && (GAME_ORIGINS.has(origin)||/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) ? origin : GAME_ORIGIN,
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, apikey, x-client-info, content-type',
   'Vary': 'Origin',
@@ -20,7 +21,7 @@ const int = (x: unknown, low: number, high: number): x is number => Number.isSaf
 const num = (x: unknown, low: number, high: number): x is number => typeof x === 'number' && Number.isFinite(x) && x>=low && x<=high;
 const clean = (x: unknown, max: number) => typeof x==='string' ? x.trim().slice(0,max) : '';
 const allowed = new Set(['page_view','game_start','wave_start','wave_complete','market_shock','alice_hit','jensen_hit','powerup_collected','boss_spawned','boss_defeated','game_over','game_victory','score_submitted']);
-const originAllowed = (o:string|null) => !o || o===GAME_ORIGIN || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
+const originAllowed = (o:string|null) => !o || GAME_ORIGINS.has(o) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
 async function identity(req:Request) {
   const jwt=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');
   if (!jwt) return null;
