@@ -27,17 +27,27 @@
       .jvaBoard tr:nth-child(1) td:first-child{color:#ffe18b}.jvaBoard tr:nth-child(2) td:first-child{color:#d4dfe6}.jvaBoard tr:nth-child(3) td:first-child{color:#e1ae83}
       .jvaMuted{font:12px monospace;color:#9dafaa}
       .jvaEndPanel{margin:12px auto 8px;padding:12px;max-width:440px;background:#142523;border-top:1px solid #536857}
-      .jvaEndPanel[hidden]{display:none}.jvaEndPanel .jvaActions{justify-content:center}
+      .jvaEndPanel[hidden],.hallEntry[hidden]{display:none!important}.jvaEndPanel .jvaActions{justify-content:center}
       .jvaEndPanel input{width:170px;padding:7px;background:#0b1b1f;color:#fff;border:1px solid #6a916c}
       @media(max-width:550px){.jvaSheet{padding:12px}.jvaBoard{font-size:10px}.hallEntry{font-size:9px}}
     `;document.head.append(css);
     const intro=document.querySelector('#overlay .modal');
     if(intro){
-      const row=document.createElement('div');row.className='hallEntry';row.innerHTML='<div style="font:700 11px Silkscreen,monospace;color:#e4cf8d">WALL STREET HALL OF FAME</div><div id="jvaTop10" class="jvaTopTen" aria-live="polite">Loading Top 10…</div><button id="jvaOpenBoard" type="button" style="margin-top:7px">VIEW TOP 100</button>';intro.append(row);
+      // On the live game, these are native HTML elements. On older previews,
+      // create them as a fallback without changing gameplay.
+      let row=$('jvaHallStart')||intro.querySelector('.hallEntry');
+      if(!row){
+        row=document.createElement('div');row.className='hallEntry';row.id='jvaHallStart';
+        row.innerHTML='<div class="jvaHallTitle">WALL STREET HALL OF FAME</div><div id="jvaTop10" class="jvaTopTen">LOADING TOP 10...</div><button id="jvaOpenBoard" class="jvaButton" type="button">VIEW TOP 100</button>';
+        intro.insertBefore(row,$('start'));
+      }
       $('jvaOpenBoard').onclick=()=>openLeaderboard();
-      const panel=document.createElement('div');panel.className='jvaEndPanel';panel.id='jvaEndPanel';panel.hidden=true;
-      panel.innerHTML='<div id="jvaFinal" class="jvaMuted"></div><div class="jvaActions"><input id="jvaNick" maxlength="20" placeholder="Nickname (max 20)" aria-label="Nickname"><button id="jvaSubmit" class="jvaButton" type="button">SUBMIT SCORE</button></div><p id="jvaResult" class="jvaMuted" role="status"></p><div class="jvaActions"><button id="jvaShare" class="jvaButton" type="button">SHARE ON X</button><button id="jvaFullBoard" class="jvaButton" type="button">LEADERBOARD</button></div>';
-      intro.append(panel);
+      let panel=$('jvaEndPanel');
+      if(!panel){
+        panel=document.createElement('div');panel.className='jvaEndPanel';panel.id='jvaEndPanel';panel.hidden=true;
+        panel.innerHTML='<div id="jvaFinal" class="jvaMuted"></div><div class="jvaActions"><input id="jvaNick" maxlength="20" placeholder="YOUR NICKNAME" aria-label="Nickname"><button id="jvaSubmit" class="jvaButton" type="button">SUBMIT SCORE</button></div><p id="jvaResult" class="jvaMuted" role="status"></p><div class="jvaActions"><button id="jvaShare" class="jvaButton" type="button">SHARE ON X</button><button id="jvaFullBoard" class="jvaButton" type="button">LEADERBOARD</button></div>';
+        intro.insertBefore(panel,$('start'));
+      }
       $('jvaSubmit').onclick=submit;
       $('jvaShare').onclick=share;
       $('jvaFullBoard').onclick=()=>openLeaderboard();
