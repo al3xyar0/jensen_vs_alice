@@ -1,0 +1,17 @@
+name: Leaderboard API smoke test
+# Manual only: this test inserts deliberate CI-TEST scores, so never run on pushes.
+on:
+  workflow_dispatch:
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test-only Supabase client
+        run: npm install --no-save --no-package-lock @supabase/supabase-js@2.57.0
+      - name: Verify anonymous player and real score submission
+        run: node scripts/leaderboard-smoke.mjs
