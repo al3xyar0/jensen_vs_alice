@@ -193,5 +193,15 @@ Deno.serve(async req=>{
    else if(path==='submit')result=await submit(uid,body);
    else return respond({error:'Not found'},404,origin);
    return respond(result,200,origin);
- }catch(e){const m=e instanceof Error?e.message:'Request failed';console.error('game-api:',m);const safe=/^(Rate limit|Invalid|Unowned|Unknown session|Nickname|Not authorized|Score failed|Expected JSON|Payload too large)/.test(m)?m:'Request could not be processed';return respond({error:safe},m.includes('Rate limit')?429:m.includes('authorized')?403:400,origin)}
+ }catch(e){
+   const err=e as {message?:unknown;code?:unknown;details?:unknown;hint?:unknown;name?:unknown}|null;
+   const m=typeof err?.message==='string'?err.message:e instanceof Error?e.message:'Unknown server error';
+   const code=typeof err?.code==='string'?err.code:'UNKNOWN';
+   console.error('jva-game-api route error',JSON.stringify({
+      path,code,message:m,details:typeof err?.details==='string'?err.details.slice(0,400):undefined,
+      hint:typeof err?.hint==='string'?err.hint.slice(0,200):undefined
+   }));
+   const safe=/^(Rate limit|Invalid|Unowned|Unknown session|Nickname|Not authorized|Score failed|Expected JSON|Payload too large)/.test(m)?m:'Server error ('+code+')';
+   return respond({error:safe},m.includes('Rate limit')?429:m.includes('authorized')?403:400,origin)
+ }
 });
