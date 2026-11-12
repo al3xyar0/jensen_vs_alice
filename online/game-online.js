@@ -1,7 +1,7 @@
 /* Optional online features for Jensen vs Alice. No dependency may block the game loop. */
 (function () {
   'use strict';
-  const site='https://al3xyar0.github.io/jensen_vs_alice/';
+  const site='https://jensenvsalice.xyz/';
   const config=window.JVA_SUPABASE||{};
   const ready=Boolean(config.url && config.publishableKey && !String(config.url).includes('REPLACE'));
   const api=ready?config.url.replace(/\/$/,'')+'/functions/v1/jva-game-api/':'';
