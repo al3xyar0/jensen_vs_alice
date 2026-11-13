@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d101e">
+  <meta name="description" content="Alice vs Kimberly: a free retro pixel-art fighting game parody. Choose a fighter, settle the drama, and win best of three against the CPU.">
+  <title>Alice vs Kimberly — Receipts Rumble</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+<body>
+<main class="shell">
+  <header class="masthead">
+    <div class="brand"><div class="brandstamp" aria-hidden="true">VS</div><div><div class="brandTitle"><span>ALICE</span> <em>VS</em> <strong>KIMBERLY</strong></div><p class="sub">RECEIPTS RUMBLE <span class="thin">EDITION 01</span></p></div></div>
+    <div class="headerActions"><button class="tinyButton" id="soundBtn" aria-pressed="true">♪ SOUND ON</button><button class="tinyButton" id="helpBtn">? CONTROLS</button></div>
+  </header>
+  <div class="gameFrame" id="gameFrame">
+    <canvas id="arena" width="800" height="450" aria-label="Interactive 1v1 arcade fighting game, Alice versus Kimberly"></canvas>
+    <div id="screen" class="screen selectScreen" role="region" aria-live="polite">
+      <div class="screenContent" id="screenContent">
+        <div class="eyebrow">WELCOME TO THE COURT OF PUBLIC OPINION</div>
+        <h1>CHOOSE YOUR <span>FIGHTER</span></h1>
+        <div class="fighters">
+          <button class="fighterChoice selected" id="pickAlice" data-pick="alice" aria-pressed="true"><span class="fighterNumber">01 / CHAOS</span><span class="avatar" id="portraitAlice"></span><strong>ALICE</strong><small>FAST • DRAMATIC • UNPREDICTABLE</small><span class="moveTag">RING TOSS</span></button>
+          <div class="vsMark">VS</div>
+          <button class="fighterChoice" id="pickKimberly" data-pick="kimberly" aria-pressed="false"><span class="fighterNumber">02 / STRATEGY</span><span class="avatar" id="portraitKimberly"></span><strong>KIMBERLY</strong><small>PRECISE • TACTICAL • UNBOTHERED</small><span class="moveTag">STATEMENT SLAM</span></button>
+        </div>
+        <div class="chooseFooter"><label>ARENA <select id="stageSelect"><option value="wall">THE REPUTATION EXCHANGE</option><option value="podcast">THE PODCAST COURT</option><option value="gala">THE GALA OF RECEIPTS</option></select></label><button class="primary" id="startBtn">START FIGHT <span>▶</span></button></div>
+        <p class="menuNote">SINGLE PLAYER VS CPU · BEST OF 3 · NO SIGNUP</p>
+      </div>
+    </div>
+    <div id="announce" class="announce" aria-live="polite"></div>
+    <div id="endScreen" class="screen endScreen hidden" role="region" aria-live="polite"><div class="resultCard"><div class="eyebrow" id="endKicker">MATCH COMPLETE</div><h2 id="endHeading">DRAMA FINISHED</h2><p id="endDescription"></p><div class="results" id="resultScore"></div><div class="endActions"><button class="primary" id="rematchBtn">REMATCH ↻</button><button class="secondary" id="selectBtn">CHARACTER SELECT</button></div></div></div>
+    <div id="pauseScreen" class="screen pauseScreen hidden"><div class="resultCard"><div class="eyebrow">THE GROUP CHAT IS TYPING...</div><h2>PAUSED</h2><button class="primary" id="resumeBtn">RESUME FIGHT ▶</button></div></div>
+    <div class="mobileControls" aria-label="On-screen fighting controls">
+      <div class="dpad"><button data-hold="left" aria-label="Move left">◀</button><button data-hold="right" aria-label="Move right">▶</button><button data-hold="jump" aria-label="Jump">▲</button><button data-hold="crouch" aria-label="Crouch">▼</button></div>
+      <div class="actions"><button data-action="quick">JAB</button><button data-action="heavy">HEAVY</button><button class="special" data-action="special">SPECIAL</button><button data-action="dash">DASH</button><button data-hold="guard">GUARD</button></div>
+    </div>
+  </div>
+  <div class="bottomBar"><div class="legend"><span><b>A D</b> MOVE</span><span><b>W</b> JUMP</span><span><b>S</b> CROUCH</span><span><b>J</b> QUICK</span><span><b>K</b> HEAVY</span><span><b>L</b> SPECIAL</span><span><b>U</b> DASH</span><span><b>I</b> GUARD</span></div><span class="cpuBadge">P1 VS CPU <i></i></span></div>
+  <p class="fineprint">A fictional, non-graphic arcade parody. Original sprites, stage art and sound effects. No affiliation with any fighting-game franchise.</p>
+</main>
+<dialog id="helpDialog"><div class="helpTitle">THE RULES OF ENGAGEMENT</div><p>Choose Alice or Kimberly. Win two rounds before your rival does. Land attacks, jump over projectiles and time your special moves.</p><div class="helpGrid"><span>A / D</span><span>Move</span><span>W</span><span>Jump</span><span>S</span><span>Crouch</span><span>J</span><span>Quick hit</span><span>K</span><span>Heavy hit</span><span>L</span><span>Unique special</span><span>U</span><span>Drama dash</span><span>I</span><span>Hold guard</span><span>P / Esc</span><span>Pause</span></div><p>On mobile, use the touch controls beneath the arena.</p><button class="primary" id="closeHelp">BACK TO FIGHT</button></dialog>
+<script src="game.js" defer></script></body>
+</html>
