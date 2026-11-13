@@ -13,7 +13,7 @@ const ids={alice:{name:'ALICE',tag:'CHAOS',primary:'#ff658e',deep:'#aa284e',ligh
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rnd=(a,b)=>a+Math.random()*(b-a);
 let phase='select',selected='alice',stage='wall',p1=null,p2=null,projectiles=[],particles=[],floats=[],round=1,roundClock=85,phaseTimer=0,gameTime=0,globalTime=0,last=performance.now(),shake=0,flash=0,soundOn=true,audio=null,announceTimer=0,eventTimer=22,eventType='',eventLife=0,matchWinner=null,settingsOpen=false;
 const held={left:false,right:false,jump:false,crouch:false,guard:false};
-const keys={KeyA:'left',KeyD:'right',KeyW:'jump',KeyS:'crouch',KeyI:'guard'};
+const keys={KeyA:'left',KeyD:'right',KeyW:'jump',KeyS:'crouch',KeyO:'guard'};
 const attackKeys={KeyJ:'quick',KeyK:'heavy',KeyL:'special',KeyU:'alt',KeyI:'ultimate'};
 
 /* Original sprite art REUSED from Jensen vs Alice (main branch).
@@ -72,7 +72,7 @@ function fighter(id,x,isAI=false){return{id,x,y:GROUND,vy:0,hp:100,roundWins:0,d
 function setSelection(id){selected=id;for(const c of ['alice','kimberly']){$('pick'+(c==='alice'?'Alice':'Kimberly')).classList.toggle('selected',c===id);$('pick'+(c==='alice'?'Alice':'Kimberly')).setAttribute('aria-pressed',String(c===id))}sound(440,.065,'triangle',.02,600)}
 function stageLabel(){return {wall:'REPUTATION EXCHANGE',podcast:'PODCAST COURT',gala:'GALA OF RECEIPTS'}[stage]}
 function begin(){stage=$('stageSelect').value;const foe=selected==='alice'?'kimberly':'alice';p1=fighter(selected,230);p2=fighter(foe,570,true);round=1;matchWinner=null;startRound();$('screen').classList.add('hidden');$('endScreen').classList.add('hidden');$('pauseScreen').classList.add('hidden');sound(540,.17,'triangle',.04,830)}
-function startRound(){const a=p1.roundWins,b=p2.roundWins;p1=fighter(p1.id,225);p2=fighter(p2.id,575,true);p1.roundWins=a;p2.roundWins=b;roundClock=85;projectiles=[];particles=[];floats=[];phase='intro';phaseTimer=1.8;eventTimer=rnd(13,18);eventType='';eventLife=0;gameTime=0;announce(`ROUND ${round}`, '#fff0ac',1.1)}
+function startRound(){const a=p1.roundWins,b=p2.roundWins;p1=fighter(p1.id,225);p2=fighter(p2.id,575,true);p1.roundWins=a;p2.roundWins=b;roundClock=85;projectiles=[];particles=[];floats=[];phase='intro';phaseTimer=1.8;eventTimer=rnd(13,18);dramaPapers=[];hitFreeze=0;eventType='';eventLife=0;gameTime=0;announce(`ROUND ${round}`, '#fff0ac',1.1)}
 function finishRound(winner,why='KO'){if(phase!=='fight')return;phase='roundOver';phaseTimer=2.4;winner.roundWins++;const loser=winner===p1?p2:p1;if(loser.hp<=0){loser.action='ko';loser.actionT=10}announce(why==='TIME'?'TIME UP':winner===p1?'K.O.':'CPU K.O.',why==='TIME'?'#ffdf8a':winner===p1?'#fff3b0':'#ff9caf',2);sound(110,.65,'sawtooth',.085,70);if(winner.roundWins>=2){matchWinner=winner;phaseTimer=2.2}}
 function endMatch(){phase='matchOver';const win=matchWinner===p1;const name=matchWinner?.id==='alice'?'ALICE':'KIMBERLY';$('endKicker').textContent=win?'PUBLIC OPINION HAS SPOKEN':'THE TIMELINE HAS CHOSEN';$('endHeading').textContent=win?'DRAMA FINISHED':'REPUTATION IN SHAMBLES';const quotes={alice:['The ring is mine. So is the scoreboard.','Receipts delivered.','I came for the ring and the win.'],kimberly:['Statement issued. Case closed.','Try bringing facts next time.','I do not respond to rumors. Only knockouts.']};$('endDescription').textContent=quotes[matchWinner.id][Math.floor(Math.random()*3)];$('resultScore').textContent=`${name} WINS    ${p1.roundWins} - ${p2.roundWins}   BEST OF THREE`;$('endScreen').classList.remove('hidden')}
 function move(f,dir,dt){if(f.stun>0||f.action==='ko'||(f.actionT>.08&&['heavy','quick','special','dash'].includes(f.action)))return;if(f.dashV)return;const slow=eventType==='VIRAL CLIP'&&eventLife>0?.65:1;const speed=(f.id==='alice'?177:160)*slow*(f.buff>0?1.20:1);f.x=clamp(f.x+dir*speed*dt,LEFT,RIGHT);f.walking+=dt*(f.id==='alice'?11:9);f.move=dir;if(f.action==='idle'&&Math.abs(dir)>.01)f.action='walk';}
@@ -146,7 +146,7 @@ function applyHit(a,b,damage,push,kind,finisher=false){
    b.counter=0;b.shield=0;b.invuln=.26;
    sparks(b.x,b.y-86,'#b9f0ff',28);
    popup(b.x,b.y-143,'COLD RESPONSE!','#b9efff');
-   setTimeoutNoop();
+   // Crisp frame-driven counter feedback.
    const counterDamage=12;
    a.hp=clamp(a.hp-counterDamage,0,100);
    a.stun=.38;a.hurt=.36;a.action='hurt';a.actionT=.34;
@@ -174,7 +174,7 @@ function applyHit(a,b,damage,push,kind,finisher=false){
  return true;
 }
 // No asynchronous timer: combat remains deterministic in the frame loop.
-function setTimeoutNoop(){}
+
 
 
 function resolveAttacks(f,dt){
@@ -388,7 +388,7 @@ function effects(){
  if(flash>0){ctx.fillStyle=`rgba(255,255,255,${flash*.66})`;ctx.fillRect(0,0,W,H)}
 }
 
-function render(){ctx.save();if(shake>0)ctx.translate(rnd(-shake,shake),rnd(-shake/2,shake/2));drawStage();if(phase!=='select'&&p1&&p2){fighterRender(p1);fighterRender(p2);for(const p of projectiles)drawProjectile(p);effects()}drawHUD();ctx.restore()}
+function render(){ctx.save();if(shake>0)ctx.translate(rnd(-shake,shake),rnd(-shake/2,shake/2));drawStage();if(phase!=='select'&&p1&&p2){fighterRender(p1);fighterRender(p2);for(const p of projectiles)drawProjectile(p);effects();if(eventLife>0){ctx.globalAlpha=.92;rect(253,91,294,22,'#14213d');txt(eventType,400,106,13,'#ffe3aa','center');ctx.globalAlpha=1}}drawHUD();ctx.restore()}
 function frame(now){const dt=Math.min(.036,(now-last)/1000||0);last=now;update(dt);render();requestAnimationFrame(frame)}
 function portraits(){for(const id of ['alice','kimberly']){const host=$('portrait'+(id==='alice'?'Alice':'Kimberly')),c=document.createElement('canvas');c.width=150;c.height=135;c.style.width='150px';c.style.height='135px';const pc=c.getContext('2d');pc.imageSmoothingEnabled=false;pc.fillStyle=id==='alice'?'#34243a':'#21355c';pc.fillRect(0,0,150,135);let f=fighter(id,75);f.y=126;f.dir=1;drawFighterAt(pc,f,75,132,1.1,true);host.replaceChildren(c)}}
 function togglePause(){if(phase==='fight'){phase='paused';$('pauseScreen').classList.remove('hidden')}else if(phase==='paused'){phase='fight';$('pauseScreen').classList.add('hidden')}}
@@ -406,7 +406,7 @@ $('selectBtn').addEventListener('click',()=>{phase='select';$('endScreen').class
 $('resumeBtn').addEventListener('click',togglePause);
 $('soundBtn').addEventListener('click',()=>{soundOn=!soundOn;$('soundBtn').textContent=soundOn?'♪ SOUND ON':'♪ SOUND OFF';$('soundBtn').setAttribute('aria-pressed',String(soundOn));if(soundOn)sound(440,.08)});
 $('helpBtn').addEventListener('click',()=>{$('helpDialog').showModal()});$('closeHelp').addEventListener('click',()=>$('helpDialog').close());
-window.__DRAMA_GAME__={get phase(){return phase},get round(){return round},get player(){return p1},get cpu(){return p2},get projectiles(){return projectiles},get matchWinner(){return matchWinner},start:begin,attack:(type)=>perform(p1,type),pause:togglePause,select:setSelection};
+window.__DRAMA_GAME__={get artworkLoaded(){return kimArt.idle.naturalWidth>0&&kimArt.punch.naturalWidth>0},get phase(){return phase},get round(){return round},get player(){return p1},get cpu(){return p2},get projectiles(){return projectiles},get papers(){return dramaPapers},get event(){return eventType},get matchWinner(){return matchWinner},start:begin,attack:(type)=>perform(p1,type),pause:togglePause,select:setSelection};
 portraits();requestAnimationFrame(frame);
 })();
 
